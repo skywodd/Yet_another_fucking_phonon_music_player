@@ -1,0 +1,28 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>player.png</file>
+    <file>about.png</file>
+    <file>add.png</file>
+    <file>exit.png</file>
+    <file>format.png</file>
+    <file>hardware.png</file>
+    <file>help.png</file>
+    <file>load_directory.png</file>
+    <file>load_file.png</file>
+    <file>load_playlist.png</file>
+    <file>music.png</file>
+    <file>playlist.png</file>
+    <file>remove.png</file>
+    <file>save.png</file>
+    <file>fast_forward.png</file>
+    <file>fast_rewind.png</file>
+    <file>loop_play.png</file>
+    <file>next_file.png</file>
+    <file>pause_music.png</file>
+    <file>play_music.png</file>
+    <file>previous_file.png</file>
+    <file>random_play.png</file>
+    <file>setting_menu.png</file>
+    <file>stop_playlist.png</file>
+  </qresource>
+</RCC>
