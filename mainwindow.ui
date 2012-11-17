@@ -185,12 +185,12 @@
            </widget>
           </item>
           <item>
-           <widget class="QLabel" name="music_time_remain_label">
+           <widget class="QLabel" name="music_time_total_label">
             <property name="enabled">
              <bool>false</bool>
             </property>
             <property name="toolTip">
-             <string>Temps restant</string>
+             <string>Temps total</string>
             </property>
             <property name="text">
              <string>00:00</string>
@@ -473,7 +473,7 @@
      <x>0</x>
      <y>0</y>
      <width>909</width>
-     <height>23</height>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_file">

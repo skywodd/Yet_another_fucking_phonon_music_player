@@ -13,4 +13,5 @@ HEADERS += \
     mainwindow.h
 
 QT += \
-    gui
+    gui \
+    phonon

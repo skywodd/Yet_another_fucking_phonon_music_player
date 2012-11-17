@@ -1,4 +1,25 @@
+/*
+ * See header file for details
+ *
+ *  This program is free software: you can redistribute it and/or modify\n
+ *  it under the terms of the GNU General Public License as published by\n
+ *  the Free Software Foundation, either version 3 of the License, or\n
+ *  (at your option) any later version.\n
+ *
+ *  This program is distributed in the hope that it will be useful,\n
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of\n
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n
+ *  GNU General Public License for more details.\n
+ *
+ *  You should have received a copy of the GNU General Public License\n
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.\n
+ */
+
+// Includes
+#include <QMessageBox>
+#include <QDialog>
 #include "mainwindow.h"
+#include "ui_about.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
@@ -41,90 +62,139 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(this->playlist_save, SIGNAL(clicked()), this, SLOT(savePlaylist()));
     QObject::connect(this->playlist_load, SIGNAL(clicked()), this, SLOT(openPlaylist()));
 
-    // Connect others signals to slots
+    // Connect sliders signals to slots
+    QObject::connect(this->music_time_slide, SIGNAL(valueChanged(int)), this, SLOT(changeVolume(int)));
+    QObject::connect(this->music_volume_slide, SIGNAL(valueChanged(int)), this, SLOT(changeVolume(int)));
+
+    // Instantiate Phonon objetcs
+    audioOutput = new Phonon::AudioOutput(Phonon::MusicCategory, this);
+    mediaObject = new Phonon::MediaObject(this);
+    metaInformationResolver = new Phonon::MediaObject(this);
+
+    // Setup tick interval
+    mediaObject->setTickInterval(1000);
+
+    // Connect Phonon signals to slots
+    connect(mediaObject, SIGNAL(tick(qint64)), this, SLOT(timeTick(qint64)));
+    connect(mediaObject, SIGNAL(stateChanged(Phonon::State,Phonon::State)),
+            this, SLOT(stateChanged(Phonon::State,Phonon::State)));
+    connect(metaInformationResolver, SIGNAL(stateChanged(Phonon::State,Phonon::State)),
+            this, SLOT(metaStateChanged(Phonon::State,Phonon::State)));
+    connect(mediaObject, SIGNAL(currentSourceChanged(Phonon::MediaSource)),
+            this, SLOT(sourceChanged(Phonon::MediaSource)));
+    connect(mediaObject, SIGNAL(aboutToFinish()), this, SLOT(aboutToFinish()));
+
+    // Connect media object to the audio output
+    Phonon::createPath(mediaObject, audioOutput);
 }
 
-MainWindow::~MainWindow()
+MainWindow::~MainWindow(void)
 {
+    // Free memory
+    delete audioOutput;
+    delete mediaObject;
+    delete metaInformationResolver;
 }
 
-void MainWindow::showAddMenu()
+void MainWindow::showAddMenu(void)
 {
 }
 
 void MainWindow::openFile(void)
 {
+    // Drop QFileDialog
+    QStringList filenames = QFileDialog::getOpenFileNames(this, Qstring("Ajouter des fichiers"),
+                                                          QDesktopServices::storageLocation(QDesktopServices::MusicLocation));
+
+    // Check if user as selected at least one file
+    if (filenames.isEmpty())
+        return;
+
+    // Get the current playlist size
+    int index = sources.size();
+
+    // For each selected files
+    foreach (QString string, filenames) {
+
+        // Open file and add it to the playlist
+        Phonon::MediaSource source(string);
+        sources.append(source);
+    }
+
+    //
+    if (!sources.isEmpty())
+        metaInformationResolver->setCurrentSource(sources.at(index));
 }
 
-void MainWindow::openDirectory()
+void MainWindow::openDirectory(void)
 {
 }
 
-void MainWindow::openPlaylist()
+void MainWindow::openPlaylist(void)
 {
 }
 
-void MainWindow::savePlaylist()
+void MainWindow::savePlaylist(void)
 {
 }
 
-void MainWindow::seekMusic()
+void MainWindow::seekMusic(const int value)
 {
 }
 
-void MainWindow::changeVolume()
+void MainWindow::changeVolume(const int value)
 {
 }
 
-void MainWindow::playPause()
+void MainWindow::playPause(void)
 {
 }
 
-void MainWindow::stop()
+void MainWindow::stop(void)
 {
 }
 
-void MainWindow::fastForward()
+void MainWindow::fastForward(void)
 {
 }
 
-void MainWindow::fastRewind()
+void MainWindow::fastRewind(void)
 {
 }
 
-void MainWindow::nextMusic()
+void MainWindow::nextMusic(void)
 {
 }
 
-void MainWindow::previousMusic()
+void MainWindow::previousMusic(void)
 {
 }
 
-void MainWindow::randomPlay()
+void MainWindow::randomPlay(void)
 {
 }
 
-void MainWindow::showLoopMenu()
+void MainWindow::showLoopMenu(void)
 {
 }
 
-void MainWindow::loopPlaylist()
+void MainWindow::loopPlaylist(void)
 {
 }
 
-void MainWindow::loopMusic()
+void MainWindow::loopMusic(void)
 {
 }
 
-void MainWindow::setAudioInterface()
+void MainWindow::setAudioInterface(void)
 {
 }
 
-void MainWindow::listSupportedFormats()
+void MainWindow::listSupportedFormats(void)
 {
 }
 
-void MainWindow::listAvailableInterfaces()
+void MainWindow::listAvailableInterfaces(void)
 {
 }
 
@@ -136,18 +206,74 @@ void MainWindow::setFFTview(const bool state)
 {
 }
 
-void MainWindow::processFFT()
+void MainWindow::processFFT(void)
 {
 }
 
-void MainWindow::showManual()
+void MainWindow::showManual(void)
+{
+    QMessageBox::information(this, QString("User manual"), QString("Sorry guy, I'm too lazy to write this help guide :)"));
+}
+
+void MainWindow::showAbout(void)
+{
+    QDialog about_window;
+    Ui::about_dialog about;
+    about.setupUi(&about_window);
+    about_window.exec();
+}
+
+void MainWindow::stateChanged(Phonon::State newState, Phonon::State oldState)
+{
+    switch (newState) {
+    case Phonon::ErrorState:
+        if (mediaObject->errorType() == Phonon::FatalError) {
+            QMessageBox::warning(this, tr("Fatal Error"),
+                                 mediaObject->errorString());
+        } else {
+            QMessageBox::warning(this, tr("Error"),
+                                 mediaObject->errorString());
+        }
+        break;
+    case Phonon::PlayingState:
+        // TODO
+        break;
+    case Phonon::StoppedState:
+        // TODO
+        break;
+    case Phonon::PausedState:
+        // TODO
+        break;
+    case Phonon::BufferingState:
+        // TODO
+        break;
+    default:
+        ;
+    }
+}
+
+void MainWindow::timeTick(qint64 time)
+{
+    QTime displayTime(0, (time / 60000) % 60, (time / 1000) % 60);
+    music_time_total_label->setText(displayTime.toString("mm:ss"));
+}
+
+void MainWindow::sourceChanged(const Phonon::MediaSource &source)
 {
 }
 
-void MainWindow::showAbout()
+void MainWindow::metaStateChanged(Phonon::State newState, Phonon::State oldState)
 {
 }
 
-void MainWindow::removeElement()
+void MainWindow::aboutToFinish(void)
+{
+}
+
+void MainWindow::tableDoubleClicked(int row, int column)
+{
+}
+
+void MainWindow::removeElement(void)
 {
 }
