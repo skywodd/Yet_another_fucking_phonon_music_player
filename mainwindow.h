@@ -81,6 +81,14 @@ protected slots:
     void openFile(void);
 
     /**
+     * Change information of time
+     *
+     * @brief configure labels, buttons and slider when the media total time changed
+     * @param totalTime total time of the media
+     */
+    void totalTimeChanged(qint64);
+
+    /**
      * Scan a directory and add each readable files to the playlist
      *
      * @brief openDirectory

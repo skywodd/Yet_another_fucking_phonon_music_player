@@ -16,10 +16,21 @@
  */
 
 // Includes
+#include <iostream>
 #include <QMessageBox>
 #include <QDialog>
+#include <QFileDialog>
+#include <QString>
+#include <QDesktopServices>
+#include <QStringList>
+#include <QString>
+#include <QTime>
+#include <QIcon>
 #include "mainwindow.h"
 #include "ui_about.h"
+
+#define play_icon QIcon("icons/play_music.png")
+#define pause_icon QIcon("icons/pause_music.png")
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent)
@@ -49,8 +60,8 @@ MainWindow::MainWindow(QWidget *parent) :
     // Connect controls buttons signals to slots
     QObject::connect(this->music_play_pause, SIGNAL(clicked()), this, SLOT(playPause()));
     QObject::connect(this->music_stop, SIGNAL(clicked()), this, SLOT(stop()));
-    QObject::connect(this->music_fast_forward, SIGNAL(clicked()), this, SLOT(fastForward()));
-    QObject::connect(this->music_fast_rewind, SIGNAL(clicked()), this, SLOT(fastRewind()));
+    QObject::connect(this->music_fast_forward, SIGNAL(pressed()), this, SLOT(fastForward()));
+    QObject::connect(this->music_fast_rewind, SIGNAL(pressed()), this, SLOT(fastRewind()));
     QObject::connect(this->music_next, SIGNAL(clicked()), this, SLOT(nextMusic()));
     QObject::connect(this->music_previous, SIGNAL(clicked()), this, SLOT(previousMusic()));
     QObject::connect(this->music_random_play, SIGNAL(clicked()), this, SLOT(randomPlay()));
@@ -63,7 +74,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QObject::connect(this->playlist_load, SIGNAL(clicked()), this, SLOT(openPlaylist()));
 
     // Connect sliders signals to slots
-    QObject::connect(this->music_time_slide, SIGNAL(valueChanged(int)), this, SLOT(changeVolume(int)));
+    QObject::connect(this->music_time_slide, SIGNAL(valueChanged(int)), this, SLOT(seekMusic(int)));
     QObject::connect(this->music_volume_slide, SIGNAL(valueChanged(int)), this, SLOT(changeVolume(int)));
 
     // Instantiate Phonon objetcs
@@ -76,6 +87,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Connect Phonon signals to slots
     connect(mediaObject, SIGNAL(tick(qint64)), this, SLOT(timeTick(qint64)));
+    connect(mediaObject, SIGNAL(totalTimeChanged(qint64)), this, SLOT(totalTimeChanged(qint64)));
     connect(mediaObject, SIGNAL(stateChanged(Phonon::State,Phonon::State)),
             this, SLOT(stateChanged(Phonon::State,Phonon::State)));
     connect(metaInformationResolver, SIGNAL(stateChanged(Phonon::State,Phonon::State)),
@@ -86,6 +98,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     // Connect media object to the audio output
     Phonon::createPath(mediaObject, audioOutput);
+
 }
 
 MainWindow::~MainWindow(void)
@@ -103,7 +116,7 @@ void MainWindow::showAddMenu(void)
 void MainWindow::openFile(void)
 {
     // Drop QFileDialog
-    QStringList filenames = QFileDialog::getOpenFileNames(this, Qstring("Ajouter des fichiers"),
+    QStringList filenames = QFileDialog::getOpenFileNames(this, QString("Ajouter des fichiers"),
                                                           QDesktopServices::storageLocation(QDesktopServices::MusicLocation));
 
     // Check if user as selected at least one file
@@ -122,8 +135,50 @@ void MainWindow::openFile(void)
     }
 
     //
-    if (!sources.isEmpty())
+    if (!sources.isEmpty()) {
         metaInformationResolver->setCurrentSource(sources.at(index));
+
+        //Set the first source ready to be read
+        mediaObject->setCurrentSource(sources.front());
+
+        //if there is more than one music opened
+        if(sources.size()>1){
+            music_next->setEnabled(true);
+            music_previous->setEnabled(true);
+        }
+
+        //Enable labels
+        music_time_elapse_label->setEnabled(true);
+        music_volume_label->setEnabled(true);
+
+        //Enable buttons
+        music_play_pause->setEnabled(true);
+        music_stop->setEnabled(true);
+        music_time_slide->setEnabled(true);
+        music_volume_slide->setEnabled(true);
+
+    }
+}
+
+void MainWindow::totalTimeChanged(qint64 totalTime)
+{
+    //Display Time
+    QTime displayTime(0, (totalTime / 60000) % 60, (totalTime / 1000) % 60);
+    music_time_total_label->setText(displayTime.toString("mm:ss"));
+
+    //Configure sliders
+    music_time_slide->setMaximum(totalTime/1000);
+
+    //Enable labels
+    music_time_total_label->setEnabled(true);
+
+    //Enable buttons
+    music_fast_forward->setEnabled(true);
+    music_fast_rewind->setEnabled(true);
+
+    //Enable sliders
+    music_time_slide->setEnabled(true);
+    music_volume_slide->setEnabled(true);
 }
 
 void MainWindow::openDirectory(void)
@@ -140,18 +195,35 @@ void MainWindow::savePlaylist(void)
 
 void MainWindow::seekMusic(const int value)
 {
+    if(value*1000!=mediaObject->currentTime())
+        mediaObject->seek(value*1000);
 }
 
 void MainWindow::changeVolume(const int value)
 {
+    audioOutput->setVolume(qreal(value)/music_volume_slide->maximum());
+    QString valueText = QString::number(value);
+    music_volume_label->setText(valueText);
 }
 
 void MainWindow::playPause(void)
 {
+    if(mediaObject->state()==Phonon::PlayingState)
+        //pause
+        mediaObject->pause();
+    else
+        //play
+        mediaObject->play();
+
 }
 
 void MainWindow::stop(void)
 {
+    mediaObject->stop();
+    QTime displayTime(0, 0, 0);
+    music_time_elapse_label->setText(displayTime.toString("mm:ss"));
+    music_time_slide->setValue(0);
+
 }
 
 void MainWindow::fastForward(void)
@@ -236,13 +308,13 @@ void MainWindow::stateChanged(Phonon::State newState, Phonon::State oldState)
         }
         break;
     case Phonon::PlayingState:
-        // TODO
+        music_play_pause->setIcon(pause_icon);
         break;
     case Phonon::StoppedState:
-        // TODO
+         music_play_pause->setIcon(play_icon);
         break;
     case Phonon::PausedState:
-        // TODO
+        music_play_pause->setIcon(play_icon);
         break;
     case Phonon::BufferingState:
         // TODO
@@ -255,7 +327,8 @@ void MainWindow::stateChanged(Phonon::State newState, Phonon::State oldState)
 void MainWindow::timeTick(qint64 time)
 {
     QTime displayTime(0, (time / 60000) % 60, (time / 1000) % 60);
-    music_time_total_label->setText(displayTime.toString("mm:ss"));
+    music_time_elapse_label->setText(displayTime.toString("mm:ss"));
+    music_time_slide->setValue(time/1000);
 }
 
 void MainWindow::sourceChanged(const Phonon::MediaSource &source)
